@@ -1,0 +1,16 @@
+# Backend secrets / local DB
+backend/.env
+backend/data/*
+!backend/data/.gitkeep
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/venv/
+backend/.venv/
+backend/public/*.bak
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

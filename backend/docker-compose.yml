@@ -1,0 +1,33 @@
+# docker compose up -d --build      ->  http://SERVER-IP:8000   (put Nginx / Caddy with HTTPS in front for live use)
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: bizkhata
+      POSTGRES_PASSWORD: CHANGE_THIS_PASSWORD
+      POSTGRES_DB: bizkhata_master
+    command: ["postgres", "-c", "max_connections=200"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bizkhata -d bizkhata_master"]
+      interval: 5s
+      retries: 10
+  app:
+    build: .
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports: ["8000:8000"]
+    environment:
+      DB_ENGINE: postgres
+      DATABASE_URL: postgresql://bizkhata:CHANGE_THIS_PASSWORD@db:5432/bizkhata_master
+      SHOP_ISOLATION: database
+      SECRET: put-a-long-random-text-here
+      TRUST_PROXY: "1"
+      ADMIN_LOGIN: admin@bizease.com
+      ADMIN_PASSWORD: ChangeMe-123456
+volumes:
+  pgdata:

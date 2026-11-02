@@ -400,7 +400,12 @@ const L = (u, e) => (KL === 'ur' && ROLE !== 'admin') ? u : e;
 /* ---------- API ---------- */
 const ERR = {
   BAD_MOBILE: ['موبائل نمبر 11 ہندسوں کا ہو اور 03 سے شروع ہو', 'Mobile number must be 11 digits and start with 03'],
-  SHORT_PASS: ['پاسورڈ کم از کم 4 حروف کا ہو', 'Password needs at least 4 characters'],
+  SHORT_PASS: ['پاسورڈ کم از کم 8 حروف کا ہو', 'Password needs at least 8 characters'],
+  PASS_UPPER: ['پاسورڈ میں کم از کم ایک بڑا حرف (A-Z) ہو', 'Password needs at least one capital letter (A-Z)'],
+  PASS_LOWER: ['پاسورڈ میں کم از کم ایک چھوٹا حرف (a-z) ہو', 'Password needs at least one small letter (a-z)'],
+  PASS_DIGIT: ['پاسورڈ میں کم از کم ایک نمبر (0-9) ہو', 'Password needs at least one number (0-9)'],
+  PASS_SPECIAL: ['پاسورڈ میں کم از کم ایک خاص نشان ہو (!@#$)', 'Password needs at least one special character (!@#$)'],
+  PASS_MATCH: ['پاسورڈ اور کنفرم پاسورڈ ایک جیسے نہیں', 'Password and confirm password do not match'],
   MOBILE_TAKEN: ['یہ موبائل نمبر پہلے سے رجسٹر ہے', 'This mobile number is already registered'],
   BAD_LOGIN: ['موبائل نمبر یا پاسورڈ غلط ہے', 'Mobile number or password is not correct'],
   FIELDS: ['براہ کرم سب خانے بھریں', 'Please fill every field'],
@@ -423,6 +428,25 @@ const ERRF = {
 };
 const errMsg = e => { const c = e && e.code; if (ERRF[c] && e.data) { const m = ERRF[c](e.data); return L(m[0], m[1]); } const m = ERR[c]; return m ? L(m[0], m[1]) : ((e && e.message) || 'Error'); };
 const ce = c => { const e = new Error(c); e.code = c; return e; };
+/* ---------- strong password + confirm ---------- */
+const PASS_HINT = () => L('کم از کم 8 حروف، بڑا حرف، چھوٹا حرف، نمبر اور خاص نشان (!@#$)', 'At least 8 chars, capital, small letter, number and special (!@#$)');
+function pwCheck(pw) {
+  pw = String(pw == null ? '' : pw);
+  if (pw.length < 8) return 'SHORT_PASS';
+  if (!/[A-Z]/.test(pw)) return 'PASS_UPPER';
+  if (!/[a-z]/.test(pw)) return 'PASS_LOWER';
+  if (!/\d/.test(pw)) return 'PASS_DIGIT';
+  if (!/[!@#$%^&*()_+\-=\[\]{};:,.<>/?]/.test(pw)) return 'PASS_SPECIAL';
+  return null;
+}
+function pwNeed(pw, confirm, allowEmpty) {
+  if (allowEmpty && !pw) return null;
+  if (!pw) return 'FIELDS';
+  const c = pwCheck(pw); if (c) return c;
+  if (confirm !== undefined && String(confirm) !== String(pw)) return 'PASS_MATCH';
+  return null;
+}
+
 /*API-START*/
 /* API_BASE: empty = same origin (serve this file from Flask). For separate frontend:
    set window.BIZKHATA_API = 'http://127.0.0.1:8000' before this script, or edit below. */
@@ -474,14 +498,14 @@ function appLink() {
 A.kInstall = async () => { if (!INSTALL_EVT) return; INSTALL_EVT.prompt(); try { await INSTALL_EVT.userChoice; } catch (e) {} INSTALL_EVT = null; render(); };
 const AUTH = {
   login: () => kShell(`<h2>${L('لاگ ان', 'Log in')}</h2><p class="mut sm hint" style="margin:-8px 0 14px">${L('اپنا موبائل نمبر اور پاسورڈ لکھیں۔', 'Enter your mobile number and password.')}</p>${F('lg_email', L('موبائل نمبر *', 'Mobile number *'), { attr: 'placeholder="03XXXXXXXXX" autocomplete="username" autocapitalize="none"' })}${F('lg_pass', L('پاسورڈ *', 'Password *'), { type: 'password', attr: 'autocomplete="current-password"' })}<div style="text-align:end;margin:-6px 0 0"><a href="#/forgot" class="sm">${L('پاسورڈ بھول گئے؟', 'Forgot password?')}</a></div><button class="kgold" data-a="doLogin">${L('لاگ ان', 'Log in')}</button><a class="kdark" href="#/register">${L('نئی دکان رجسٹر کریں (7 دن فری)', 'Register your shop (7 days free)')}</a>`),
-  register: () => kShell(`<h2>${L('دکان رجسٹر کریں', 'Register your shop')}</h2><p class="mut sm hint" style="margin:-8px 0 14px">${L('7 دن مفت ٹرائل۔ موبائل نمبر ہی آپ کا یوزر نیم ہو گا۔', '7-day free trial. Your mobile number is your username.')}</p>${F('rg_name', L('نام *', 'Full name *'))}${F('rg_cell', L('موبائل نمبر * (11 ہندسے، 03 سے شروع)', 'Mobile number * (11 digits, starts with 03)'), { type: 'tel', attr: kMobAttr })}${F('rg_co', L('دکان کا نام *', 'Shop name *'))}${F('rg_p1', L('پاسورڈ *', 'Password *'), { type: 'password' })}<button class="kgold" data-a="doRegister">${L('رجسٹر کریں', 'Register')}</button><a class="kdark" href="#/login">${L('پہلے سے رجسٹر ہیں؟ لاگ ان', 'Already registered? Log in')}</a>`),
-  forgot: () => kShell(`<h2>${L('پاسورڈ بھول گئے', 'Forgot password')}</h2><p class="mut sm hint" style="margin:-8px 0 14px">${L('اپنا موبائل نمبر اور نیا پاسورڈ لکھیں۔ ایڈمن منظور کرے گا تو نیا پاسورڈ چل جائے گا۔', 'Enter your mobile number and a new password. It starts working once the admin approves.')}</p>${F('fp_cell', L('موبائل نمبر *', 'Mobile number *'), { type: 'tel', attr: kMobAttr })}${F('fp_p1', L('نیا پاسورڈ *', 'New password *'), { type: 'password' })}<button class="kgold" data-a="doForgot">${L('درخواست بھیجیں', 'Send request')}</button><a class="kdark" href="#/login">${L('واپس لاگ ان', 'Back to log in')}</a>`),
+  register: () => kShell(`<h2>${L('دکان رجسٹر کریں', 'Register your shop')}</h2><p class="mut sm hint" style="margin:-8px 0 14px">${L('7 دن مفت ٹرائل۔ موبائل نمبر ہی آپ کا یوزر نیم ہو گا۔', '7-day free trial. Your mobile number is your username.')}</p>${F('rg_name', L('نام *', 'Full name *'))}${F('rg_cell', L('موبائل نمبر * (11 ہندسے، 03 سے شروع)', 'Mobile number * (11 digits, starts with 03)'), { type: 'tel', attr: kMobAttr })}${F('rg_co', L('دکان کا نام *', 'Shop name *'))}${F('rg_p1', L('پاسورڈ *', 'Password *'), { type: 'password' })}${F('rg_p2', L('کنفرم پاسورڈ *', 'Confirm password *'), { type: 'password' })}<p class="mut sm" style="margin:-6px 0 12px">${PASS_HINT()}</p><button class="kgold" data-a="doRegister">${L('رجسٹر کریں', 'Register')}</button><a class="kdark" href="#/login">${L('پہلے سے رجسٹر ہیں؟ لاگ ان', 'Already registered? Log in')}</a>`),
+  forgot: () => kShell(`<h2>${L('پاسورڈ بھول گئے', 'Forgot password')}</h2><p class="mut sm hint" style="margin:-8px 0 14px">${L('اپنا موبائل نمبر اور نیا پاسورڈ لکھیں۔ ایڈمن منظور کرے گا تو نیا پاسورڈ چل جائے گا۔', 'Enter your mobile number and a new password. It starts working once the admin approves.')}</p>${F('fp_cell', L('موبائل نمبر *', 'Mobile number *'), { type: 'tel', attr: kMobAttr })}${F('fp_p1', L('نیا پاسورڈ *', 'New password *'), { type: 'password' })}${F('fp_p2', L('کنفرم پاسورڈ *', 'Confirm password *'), { type: 'password' })}<p class="mut sm" style="margin:-6px 0 12px">${PASS_HINT()}</p><button class="kgold" data-a="doForgot">${L('درخواست بھیجیں', 'Send request')}</button><a class="kdark" href="#/login">${L('واپس لاگ ان', 'Back to log in')}</a>`),
 };
 A.doRegister = async () => {
-  const name = V('rg_name'), cell = kMob(V('rg_cell')), shop = V('rg_co'), password = $('#rg_p1').value;
-  if (!name || !cell || !shop || !password) return toast(L(...ERR.FIELDS), 'err');
+  const name = V('rg_name'), cell = kMob(V('rg_cell')), shop = V('rg_co'), password = $('#rg_p1').value, confirm = $('#rg_p2').value;
+  if (!name || !cell || !shop || !password || !confirm) return toast(L(...ERR.FIELDS), 'err');
   if (!KMOB_RE.test(cell)) return toast(L(...ERR.BAD_MOBILE), 'err');
-  if (password.length < 4) return toast(L(...ERR.SHORT_PASS), 'err');
+  { const e = pwNeed(password, confirm); if (e) return toast(L(...ERR[e]), 'err'); }
   const r = await api('/register', 'POST', { name, mobile: cell, shop, password });
   setAuth(r.token, r.role); toast(L('خوش آمدید! 7 دن فری ٹرائل شروع', 'Welcome! Your 7-day free trial has started')); go('home');
 };
@@ -493,9 +517,9 @@ A.doLogin = async () => {
   setAuth(r.token, r.role); go(r.role === 'admin' ? 's-companies' : 'home');
 };
 A.doForgot = async () => {
-  const mobile = kMob(V('fp_cell')), password = $('#fp_p1').value;
+  const mobile = kMob(V('fp_cell')), password = $('#fp_p1').value, confirm = $('#fp_p2').value;
   if (!KMOB_RE.test(mobile)) return toast(L(...ERR.BAD_MOBILE), 'err');
-  if (password.length < 4) return toast(L(...ERR.SHORT_PASS), 'err');
+  { const e = pwNeed(password, confirm); if (e) return toast(L(...ERR[e]), 'err'); }
   await api('/forgot', 'POST', { mobile, password });
   toast(L('درخواست ایڈمن کو بھیج دی گئی۔ منظوری کے بعد نئے پاسورڈ سے لاگ ان کریں۔', 'Request sent to admin. After approval, log in with the new password.')); go('login');
 };
@@ -760,8 +784,8 @@ AP['s-company'] = async () => {
     <div class="card"><h3>Activity</h3>${d.log.length ? d.log.map(l => `<div class="item"><div class="l"><b>${esc(l.action)}</b><span class="mut sm">${esc(l.actor)}${l.detail ? ' · ' + esc(l.detail) : ''}</span></div><div class="rt mut sm">${dts(l.at)}</div></div>`).join('') : '<div class="empty small">No activity.</div>'}</div>`;
   return { title: s.name, sub: 'Company details', body };
 };
-A.sAdd = () => modal(`<h3>Add company</h3>${F('na_shop', 'Shop name')}${F('na_name', 'Owner name')}${F('na_cell', 'Mobile number (login ID)', { type: 'tel', attr: kMobAttr })}${F('na_pass', 'Password', { type: 'password' })}<div class="fld"><label>Status</label><select id="na_st" data-native="1">${opts([['trial', 'Trial (auto start)'], ['pending', 'Pending approval'], ['full', 'Full access']], 'trial')}</select></div><div class="row end"><button class="btn ghost s" data-a="closeModal">Cancel</button><button class="btn s" data-a="sAddSave">Create</button></div>`);
-A.sAddSave = async () => { await api('/admin/shops', 'POST', { shop: V('na_shop'), name: V('na_name'), mobile: V('na_cell'), password: $('#na_pass').value, status: V('na_st') }); closeModal(); toast('Company created'); render(); };
+A.sAdd = () => modal(`<h3>Add company</h3>${F('na_shop', 'Shop name')}${F('na_name', 'Owner name')}${F('na_cell', 'Mobile number (login ID)', { type: 'tel', attr: kMobAttr })}${F('na_pass', 'Password', { type: 'password' })}${F('na_pass2', 'Confirm password', { type: 'password' })}<p class="mut sm" style="margin:-6px 0 10px">At least 8 chars, capital, small letter, number and special (!@#$)</p><div class="fld"><label>Status</label><select id="na_st" data-native="1">${opts([['trial', 'Trial (auto start)'], ['pending', 'Pending approval'], ['full', 'Full access']], 'trial')}</select></div><div class="row end"><button class="btn ghost s" data-a="closeModal">Cancel</button><button class="btn s" data-a="sAddSave">Create</button></div>`);
+A.sAddSave = async () => { const password = $('#na_pass').value, confirm = $('#na_pass2').value; const e = pwNeed(password, confirm); if (e) return toast(ERR[e] ? ERR[e][1] : e, 'err'); await api('/admin/shops', 'POST', { shop: V('na_shop'), name: V('na_name'), mobile: V('na_cell'), password, status: V('na_st') }); closeModal(); toast('Company created'); render(); };
 A.sPlan = async d => {
   const r = await api('/admin/shops/' + d.id), s = r.shop, st = s.status === 'pending' ? 'trial' : s.status;
   modal(`<h3>${esc(s.name)} — plan</h3><div class="fld"><label>Status</label><select id="pl_st" data-native="1">${opts([['pending', 'Pending'], ['trial', 'Trial'], ['partial', 'Partial'], ['full', 'Full access'], ['suspended', 'Blocked'], ['rejected', 'Rejected']], st)}</select></div>${F('pl_fee', 'Monthly fee (blank = default fee)', { type: 'number', v: s.fee || '', attr: 'min="0"' })}${F('pl_due', 'Next due date (paid plans)', { type: 'date', v: s.nextDue || '' })}${F('pl_trial', 'Trial days (when set to Trial)', { type: 'number', v: 7, attr: 'min="1"' })}<label class="chk"><input type="checkbox" id="pl_gen"> Create the bill for this due date now</label><div class="row end"><button class="btn ghost s" data-a="closeModal">Cancel</button><button class="btn s" data-a="sPlanSave" data-id="${s.id}">Save</button></div>`);
@@ -770,9 +794,9 @@ A.sPlanSave = async d => { await api('/admin/shops/' + d.id + '/plan', 'POST', {
 A.sBlock = d => kConfirmEn('Block this company? Only the billing screen will show to them.', async () => { await api('/admin/shops/' + d.id + '/block', 'POST'); toast('Blocked'); render(); });
 A.sEdit = async d => {
   const r = await api('/admin/shops/' + d.id), s = r.shop;
-  modal(`<h3>Edit company</h3>${F('ed_shop', 'Shop name', { v: s.name })}${F('ed_owner', 'Owner name', { v: s.ownerName })}${F('ed_cell', 'Mobile number (login ID)', { type: 'tel', v: s.mobile, attr: kMobAttr })}${F('ed_pass', 'New password (leave empty to keep)', { type: 'password' })}<div class="row end"><button class="btn ghost s" data-a="closeModal">Cancel</button><button class="btn s" data-a="sEditSave" data-id="${s.id}">Save</button></div>`);
+  modal(`<h3>Edit company</h3>${F('ed_shop', 'Shop name', { v: s.name })}${F('ed_owner', 'Owner name', { v: s.ownerName })}${F('ed_cell', 'Mobile number (login ID)', { type: 'tel', v: s.mobile, attr: kMobAttr })}${F('ed_pass', 'New password (leave empty to keep)', { type: 'password' })}${F('ed_pass2', 'Confirm new password', { type: 'password' })}<p class="mut sm" style="margin:-6px 0 10px">If set: 8+ chars, capital, small letter, number, special (!@#$)</p><div class="row end"><button class="btn ghost s" data-a="closeModal">Cancel</button><button class="btn s" data-a="sEditSave" data-id="${s.id}">Save</button></div>`);
 };
-A.sEditSave = async d => { await api('/admin/shops/' + d.id, 'PUT', { name: V('ed_shop'), owner: V('ed_owner'), mobile: V('ed_cell'), password: $('#ed_pass').value }); closeModal(); toast('Saved'); render(); };
+A.sEditSave = async d => { const password = $('#ed_pass').value, confirm = $('#ed_pass2').value; const e = pwNeed(password, confirm, true); if (e) return toast(ERR[e] ? ERR[e][1] : e, 'err'); await api('/admin/shops/' + d.id, 'PUT', { name: V('ed_shop'), owner: V('ed_owner'), mobile: V('ed_cell'), password }); closeModal(); toast('Saved'); render(); };
 function kConfirmEn(msg, fn) { modal(`<p style="margin:0 0 12px">${msg}</p><div class="row end"><button class="btn ghost s" data-a="closeModal">Cancel</button><button class="btn danger s" id="kcY">Yes</button></div>`); $('#kcY').onclick = async () => { closeModal(); try { await fn(); } catch (e) { toast(errMsg(e), 'err'); } }; }
 A.sDel = d => kConfirmEn(`Delete <b>${esc(d.n)}</b> and its whole separate database? This cannot be undone.`, async () => { await api('/admin/shops/' + d.id, 'DELETE'); toast('Deleted'); go('s-companies'); });
 
@@ -814,10 +838,10 @@ A.billDel = d => kConfirmEn('Delete this bill?', async () => { await api('/admin
 AP['s-settings'] = async () => {
   const s = await api('/admin/settings');
   const body = `<div class="card"><h3>Shopkeeper billing</h3>${F('st_fee', 'Default monthly fee (Rs)', { type: 'number', v: s.monthlyFee || '', attr: 'min="0"' })}<div class="fld"><label for="st_bank">Bank account details (shown to shopkeepers for payment)</label><textarea id="st_bank" rows="4">${esc(s.bankDetails)}</textarea></div>${F('st_wa', 'Support WhatsApp number (with country code, e.g. 923084535456)', { v: s.whatsapp })}${F('st_trial', 'Free trial days', { type: 'number', v: s.trialDays, attr: 'min="1"' })}${F('st_grace', 'Grace days after due date', { type: 'number', v: s.graceDays, attr: 'min="0"' })}</div>
-  <div class="card"><h3>Admin login</h3>${F('st_aname', 'Admin name', { v: s.adminName })}${F('st_alogin', 'Login ID', { v: s.adminLogin, attr: 'autocapitalize="none"' })}${F('st_apass', 'New password (leave empty to keep)', { type: 'password' })}<button class="btn" data-a="stSave">Save settings</button></div>`;
+  <div class="card"><h3>Admin login</h3>${F('st_aname', 'Admin name', { v: s.adminName })}${F('st_alogin', 'Login ID', { v: s.adminLogin, attr: 'autocapitalize="none"' })}${F('st_apass', 'New password (leave empty to keep)', { type: 'password' })}${F('st_apass2', 'Confirm new password', { type: 'password' })}<p class="mut sm" style="margin:-6px 0 10px">If set: 8+ chars, capital, small letter, number, special (!@#$)</p><button class="btn" data-a="stSave">Save settings</button></div>`;
   return { title: 'Settings', sub: 'Fee, bank details, trial and grace days, admin login.', body };
 };
-A.stSave = async () => { await api('/admin/settings', 'PUT', { monthlyFee: num(V('st_fee')), bankDetails: $('#st_bank').value, whatsapp: V('st_wa'), trialDays: num(V('st_trial')), graceDays: num(V('st_grace')), adminName: V('st_aname'), adminLogin: V('st_alogin'), newPassword: $('#st_apass').value }); toast('Saved'); render(); };
+A.stSave = async () => { const newPassword = $('#st_apass').value, confirm = $('#st_apass2').value; const e = pwNeed(newPassword, confirm, true); if (e) return toast(ERR[e] ? ERR[e][1] : e, 'err'); await api('/admin/settings', 'PUT', { monthlyFee: num(V('st_fee')), bankDetails: $('#st_bank').value, whatsapp: V('st_wa'), trialDays: num(V('st_trial')), graceDays: num(V('st_grace')), adminName: V('st_aname'), adminLogin: V('st_alogin'), newPassword }); toast('Saved'); render(); };
 
 /* ---------- start ---------- */
 if (location.protocol === 'file:' && !window.STANDALONE) {
