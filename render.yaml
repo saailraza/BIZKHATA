@@ -1,0 +1,35 @@
+﻿services:
+  - type: web
+    name: bizkhata-api
+    runtime: docker
+    plan: starter
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_ENGINE
+        value: postgres
+      - key: SHOP_ISOLATION
+        value: schema
+      - key: TRUST_PROXY
+        value: "1"
+      - key: TEST_USER
+        value: "0"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: SECRET
+        generateValue: true
+      - key: ADMIN_LOGIN
+        value: admin@bizease.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bizkhata-db
+          property: connectionString
+
+databases:
+  - name: bizkhata-db
+    plan: basic-256mb
+    databaseName: bizkhata_master
+    user: bizkhata

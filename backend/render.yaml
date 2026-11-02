@@ -1,0 +1,37 @@
+# Use with monorepo: put this at repo ROOT, or in Render set Root Directory = backend.
+# If this file lives inside /backend and you set Root Directory = backend, keep rootDir as "."
+services:
+  - type: web
+    name: bizkhata-api
+    runtime: docker
+    plan: starter
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_ENGINE
+        value: postgres
+      - key: SHOP_ISOLATION
+        value: schema
+      - key: TRUST_PROXY
+        value: "1"
+      - key: TEST_USER
+        value: "0"
+      - key: WEB_CONCURRENCY
+        value: "2"
+      - key: SECRET
+        generateValue: true
+      - key: ADMIN_LOGIN
+        value: admin@bizease.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bizkhata-db
+          property: connectionString
+
+databases:
+  - name: bizkhata-db
+    plan: basic-256mb
+    databaseName: bizkhata_master
+    user: bizkhata

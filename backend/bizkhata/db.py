@@ -124,7 +124,10 @@ class PgEngine:
         # numeric -> float (not Decimal)
         dec = psycopg2.extensions.new_type(psycopg2.extensions.DECIMAL.values, 'DEC2FLOAT', lambda v, c: float(v) if v is not None else None)
         psycopg2.extensions.register_type(dec)
+        # Render / Heroku often give postgres:// — psycopg2 wants postgresql://
         self.url = config.get('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/bizkhata_master')
+        if self.url.startswith('postgres://'):
+            self.url = 'postgresql://' + self.url[len('postgres://'):]
         self.master_name = unquote(urlsplit(self.url).path.lstrip('/')) or 'bizkhata_master'
 
     def url_for(self, dbname):
